@@ -1,1 +1,1 @@
-Getting pretty damn tired about making LICENSE? I got your back
+Easily creating LICENSE file, with just one command.

@@ -23,6 +23,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 
+		if m.step == done {
+			return m, tea.Quit
+		}
+
 		switch m.step {
 		case chooseLicense:
 			cmd = m.handleLicenseChoice(msg)
@@ -68,7 +72,7 @@ func (m model) View() string {
 		currentView = errorStyle.Render("WARNING: 'LICENSE' file already exists.") + "\nAre you sure you want to overwrite it? (y/n)"
 
 	case done:
-		currentView = promptStyle.Render("Press any key to quit.")
+		currentView = m.finalMessage + "\n\n" + promptStyle.Render("Press any key to quit.")
 	}
 
 	s.WriteString(currentView)
@@ -138,7 +142,7 @@ func (m *model) handleOverwrite(msg tea.KeyMsg) tea.Cmd {
 		return m.createLicenseFile()
 	case "n", "N":
 		m.step = done
-		m.finalMessage = errorStyle.Render("❌ Aborted license creation.")
+		m.finalMessage = errorStyle.Render("Aborted license creation.")
 	}
 	return nil
 }
@@ -164,5 +168,5 @@ func (m *model) createLicenseFile() tea.Cmd {
 		m.finalMessage = successStyle.Render(fmt.Sprintf("Successfully created LICENSE with the %s.", m.selectedLicense.Name))
 	}
 
-	return tea.Quit
+	return nil
 }
