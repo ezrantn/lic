@@ -25,6 +25,8 @@ type model struct {
 	nameInput       textinput.Model
 	history         []string
 	finalMessage    string
+	viewportHeight  int
+	viewportOffset  int
 }
 
 func InitialModel() model {
@@ -42,9 +44,11 @@ func InitialModel() model {
 	tiName.Width = 50
 
 	return model{
-		step:      chooseLicense,
-		history:   []string{},
-		yearInput: tiYear,
-		nameInput: tiName,
+		step:           chooseLicense,
+		history:        []string{},
+		yearInput:      tiYear,
+		nameInput:      tiName,
+		viewportHeight: 10,
+		viewportOffset: 0,
 	}
 }

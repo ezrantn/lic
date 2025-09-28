@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 func (m model) Init() tea.Cmd {
@@ -29,7 +30,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch m.step {
 		case chooseLicense:
-			cmd = m.handleLicenseChoice(msg)
+			m.handleLicenseChoice(msg)
 		case enterYear:
 			m, cmd = m.handleYearInput(msg)
 		case enterName:
@@ -44,69 +45,90 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	var s strings.Builder
 
-	s.WriteString(strings.Join(m.history, "\n"))
+	s.WriteString(headerStyle.Render("Easy and Fast License Generator"))
 	s.WriteString("\n\n")
+
+	s.WriteString(strings.Join(m.history, "\n"))
+	if len(m.history) > 0 {
+		s.WriteString("\n\n")
+	}
 
 	var currentView string
 	switch m.step {
 	case chooseLicense:
 		var list strings.Builder
-		list.WriteString(headerStyle.Render("Choose a license:") + "\n")
-		for i, license := range availableLicenses {
-			cursor := " "
-			if m.cursor == i {
-				cursor = cursorStyle.Render(">")
-			}
-			list.WriteString(fmt.Sprintf("%s %s\n", cursor, license.Name))
+		list.WriteString(questionStyle.Render("Choose a license:"))
+		list.WriteString("\n")
+
+		start := m.viewportOffset
+		end := m.viewportOffset + m.viewportHeight
+		if end > len(availableLicenses) {
+			end = len(availableLicenses)
 		}
-		list.WriteString(promptStyle.Render("\nUse ↑/↓ to navigate, enter to select."))
+
+		for i := start; i < end; i++ {
+			license := availableLicenses[i]
+			if m.cursor == i {
+				list.WriteString(selectedItemStyle.Render(fmt.Sprintf("> %s", license.Name)))
+			} else {
+				list.WriteString(fmt.Sprintf("  %s", license.Name))
+			}
+			list.WriteString("\n")
+		}
+
+		paginationInfo := fmt.Sprintf(" (Showing %d-%d of %d)", start+1, end, len(availableLicenses))
+		list.WriteString(promptStyle.Render("\nUse ↑/↓ to navigate, enter to select." + paginationInfo))
 		currentView = list.String()
 
 	case enterYear:
-		currentView = headerStyle.Render("Enter the copyright year:") + "\n" + m.yearInput.View()
-
+		currentView = questionStyle.Render("Enter the copyright year:") + "\n" + m.yearInput.View()
 	case enterName:
-		currentView = headerStyle.Render("Enter the copyright holder's name:") + "\n" + m.nameInput.View()
-
+		currentView = questionStyle.Render("Enter the copyright holder's name:") + "\n" + m.nameInput.View()
 	case confirmOverwrite:
 		currentView = errorStyle.Render("WARNING: 'LICENSE' file already exists.") + "\nAre you sure you want to overwrite it? (y/n)"
-
 	case done:
-		currentView = m.finalMessage + "\n\n" + promptStyle.Render("Press any key to quit.")
+		boxStyle := resultBoxStyle
+		if strings.Contains(m.finalMessage, "Error") || strings.Contains(m.finalMessage, "Aborted") {
+			boxStyle = boxStyle.BorderForeground(lipgloss.Color("196"))
+		}
+		currentView = boxStyle.Render(m.finalMessage) + "\n\n" + promptStyle.Render("Press any key to quit.")
 	}
 
 	s.WriteString(currentView)
 	return appStyle.Render(s.String())
 }
 
-func (m *model) handleLicenseChoice(msg tea.KeyMsg) tea.Cmd {
+func (m *model) handleLicenseChoice(msg tea.KeyMsg) {
 	switch msg.String() {
 	case "up", "k":
 		if m.cursor > 0 {
 			m.cursor--
+			if m.cursor < m.viewportOffset {
+				m.viewportOffset--
+			}
 		}
 	case "down", "j":
 		if m.cursor < len(availableLicenses)-1 {
 			m.cursor++
+			if m.cursor >= m.viewportOffset+m.viewportHeight {
+				m.viewportOffset++
+			}
 		}
 	case "enter":
 		m.selectedLicense = availableLicenses[m.cursor]
-		q := answeredQuestionStyle.Render("? Choose a license")
+		q := answeredQuestionStyle.Render("✔ License:")
 		a := userAnswerStyle.Render(m.selectedLicense.Name)
-		m.history = append(m.history, q, a)
-
+		m.history = append(m.history, fmt.Sprintf("%s %s", q, a))
 		m.step = enterYear
 		m.yearInput.Focus()
 	}
-	return nil
 }
 
 func (m *model) handleYearInput(msg tea.KeyMsg) (model, tea.Cmd) {
 	if msg.Type == tea.KeyEnter {
-		q := answeredQuestionStyle.Render("? Enter the copyright year")
+		q := answeredQuestionStyle.Render("✔ Year:")
 		a := userAnswerStyle.Render(m.yearInput.Value())
-		m.history = append(m.history, q, a)
-
+		m.history = append(m.history, fmt.Sprintf("%s %s", q, a))
 		m.step = enterName
 		m.yearInput.Blur()
 		m.nameInput.Focus()
@@ -119,10 +141,9 @@ func (m *model) handleYearInput(msg tea.KeyMsg) (model, tea.Cmd) {
 
 func (m *model) handleNameInput(msg tea.KeyMsg) (model, tea.Cmd) {
 	if msg.Type == tea.KeyEnter && m.nameInput.Value() != "" {
-		q := answeredQuestionStyle.Render("? Enter the copyright holder's name")
+		q := answeredQuestionStyle.Render("✔ Name:")
 		a := userAnswerStyle.Render(m.nameInput.Value())
-		m.history = append(m.history, q, a)
-
+		m.history = append(m.history, fmt.Sprintf("%s %s", q, a))
 		m.nameInput.Blur()
 		if _, err := os.Stat("LICENSE"); err == nil {
 			m.step = confirmOverwrite
@@ -154,7 +175,7 @@ func (m *model) createLicenseFile() tea.Cmd {
 	templateBytes, err := os.ReadFile(templatePath)
 	if err != nil {
 		m.finalMessage = errorStyle.Render(fmt.Sprintf("Error reading template file: %v", err))
-		return tea.Quit
+		return nil
 	}
 
 	licenseText := string(templateBytes)
@@ -165,8 +186,7 @@ func (m *model) createLicenseFile() tea.Cmd {
 	if err != nil {
 		m.finalMessage = errorStyle.Render(fmt.Sprintf("Error writing file: %v", err))
 	} else {
-		m.finalMessage = successStyle.Render(fmt.Sprintf("Successfully created LICENSE with the %s.", m.selectedLicense.Name))
+		m.finalMessage = successStyle.Render(fmt.Sprintf("Successfully created LICENSE using the %s.", m.selectedLicense.Name))
 	}
-
 	return nil
 }

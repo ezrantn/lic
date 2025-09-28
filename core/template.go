@@ -3,14 +3,19 @@ package core
 import "github.com/charmbracelet/lipgloss"
 
 var (
-	appStyle              = lipgloss.NewStyle().Margin(0, 0, 0, 0)
+	appStyle              = lipgloss.NewStyle().Margin(1, 2)
 	headerStyle           = lipgloss.NewStyle().Foreground(lipgloss.Color("63")).Bold(true).Padding(0, 0, 1, 0)
+	questionStyle         = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("255"))
 	answeredQuestionStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Bold(true)
 	userAnswerStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("57"))
 	promptStyle           = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	cursorStyle           = lipgloss.NewStyle().Foreground(lipgloss.Color("212"))
+	selectedItemStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true)
 	successStyle          = lipgloss.NewStyle().Foreground(lipgloss.Color("40")).Bold(true)
 	errorStyle            = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
+	resultBoxStyle        = lipgloss.NewStyle().
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(lipgloss.Color("40")).
+				Padding(1, 2)
 )
 
 type licenseInfo struct {
