@@ -23,6 +23,7 @@ type model struct {
 	selectedLicense licenseInfo
 	yearInput       textinput.Model
 	nameInput       textinput.Model
+	history         []string
 	finalMessage    string
 }
 
@@ -42,6 +43,7 @@ func InitialModel() model {
 
 	return model{
 		step:      chooseLicense,
+		history:   []string{},
 		yearInput: tiYear,
 		nameInput: tiName,
 	}

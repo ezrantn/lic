@@ -40,37 +40,39 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	var s strings.Builder
 
+	s.WriteString(strings.Join(m.history, "\n"))
+	s.WriteString("\n\n")
+
+	var currentView string
 	switch m.step {
 	case chooseLicense:
-		s.WriteString(headerStyle.Render("Choose a license:") + "\n\n")
+		var list strings.Builder
+		list.WriteString(headerStyle.Render("Choose a license:") + "\n")
 		for i, license := range availableLicenses {
 			cursor := " "
 			if m.cursor == i {
 				cursor = cursorStyle.Render(">")
 			}
-			s.WriteString(fmt.Sprintf("%s %s\n", cursor, license.Name))
+			list.WriteString(fmt.Sprintf("%s %s\n", cursor, license.Name))
 		}
-		s.WriteString(promptStyle.Render("\nUse ↑/↓ to navigate, enter to select."))
+		list.WriteString(promptStyle.Render("\nUse ↑/↓ to navigate, enter to select."))
+		currentView = list.String()
 
 	case enterYear:
-		s.WriteString(headerStyle.Render("Enter the copyright year:") + "\n\n")
-		s.WriteString(m.yearInput.View())
-		s.WriteString(promptStyle.Render("\nPress enter to confirm."))
+		currentView = headerStyle.Render("Enter the copyright year:") + "\n" + m.yearInput.View()
 
 	case enterName:
-		s.WriteString(headerStyle.Render("Enter the copyright holder's full name:") + "\n\n")
-		s.WriteString(m.nameInput.View())
-		s.WriteString(promptStyle.Render("\nPress enter to confirm."))
+		currentView = headerStyle.Render("Enter the copyright holder's name:") + "\n" + m.nameInput.View()
 
 	case confirmOverwrite:
-		s.WriteString(errorStyle.Render("WARNING: 'LICENSE' file already exists."))
-		s.WriteString("\n\nAre you sure you want to overwrite it? (y/n)")
+		currentView = errorStyle.Render("WARNING: 'LICENSE' file already exists.") + "\nAre you sure you want to overwrite it? (y/n)"
 
 	case done:
-		s.WriteString(m.finalMessage)
+		currentView = promptStyle.Render("Press any key to quit.")
 	}
 
-	return docStyle.Render(s.String())
+	s.WriteString(currentView)
+	return appStyle.Render(s.String())
 }
 
 func (m *model) handleLicenseChoice(msg tea.KeyMsg) tea.Cmd {
@@ -85,6 +87,10 @@ func (m *model) handleLicenseChoice(msg tea.KeyMsg) tea.Cmd {
 		}
 	case "enter":
 		m.selectedLicense = availableLicenses[m.cursor]
+		q := answeredQuestionStyle.Render("? Choose a license")
+		a := userAnswerStyle.Render(m.selectedLicense.Name)
+		m.history = append(m.history, q, a)
+
 		m.step = enterYear
 		m.yearInput.Focus()
 	}
@@ -93,6 +99,10 @@ func (m *model) handleLicenseChoice(msg tea.KeyMsg) tea.Cmd {
 
 func (m *model) handleYearInput(msg tea.KeyMsg) (model, tea.Cmd) {
 	if msg.Type == tea.KeyEnter {
+		q := answeredQuestionStyle.Render("? Enter the copyright year")
+		a := userAnswerStyle.Render(m.yearInput.Value())
+		m.history = append(m.history, q, a)
+
 		m.step = enterName
 		m.yearInput.Blur()
 		m.nameInput.Focus()
@@ -105,6 +115,10 @@ func (m *model) handleYearInput(msg tea.KeyMsg) (model, tea.Cmd) {
 
 func (m *model) handleNameInput(msg tea.KeyMsg) (model, tea.Cmd) {
 	if msg.Type == tea.KeyEnter && m.nameInput.Value() != "" {
+		q := answeredQuestionStyle.Render("? Enter the copyright holder's name")
+		a := userAnswerStyle.Render(m.nameInput.Value())
+		m.history = append(m.history, q, a)
+
 		m.nameInput.Blur()
 		if _, err := os.Stat("LICENSE"); err == nil {
 			m.step = confirmOverwrite
@@ -147,7 +161,7 @@ func (m *model) createLicenseFile() tea.Cmd {
 	if err != nil {
 		m.finalMessage = errorStyle.Render(fmt.Sprintf("Error writing file: %v", err))
 	} else {
-		m.finalMessage = successStyle.Render(fmt.Sprintf("✅ Successfully created LICENSE with the %s.", m.selectedLicense.Name))
+		m.finalMessage = successStyle.Render(fmt.Sprintf("Successfully created LICENSE with the %s.", m.selectedLicense.Name))
 	}
 
 	return tea.Quit
